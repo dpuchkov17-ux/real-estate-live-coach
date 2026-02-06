@@ -2,6 +2,7 @@
 
 import http from "http";
 import express from "express";
+import bodyParser from "body-parser";
 import cors from "cors";
 import { WebSocketServer } from "ws";
 
@@ -9,7 +10,12 @@ import { getSession } from "./sessions.js";
 import { computeNextSuggestion, applyQueuedAdvance } from "./coachEngine.js";
 import { attachWebSocketServer, broadcastToCall } from "./ws.js";
 
+const PUBLIC_HOST = process.env.PUBLIC_HOST || "render-statements-bibliographic-licensed.trycloudflare.com";
+
+
 const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
@@ -17,6 +23,22 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "real-estate-live-coach-backend" });
 });
+
+app.post("/voice", (req, res) => {
+  const callSid = req.body?.CallSid || "unknown";
+  const wsUrl = `wss://${PUBLIC_HOST}/ws?callId=${encodeURIComponent(callSid)}`;
+
+  res.status(200);
+  res.type("text/xml");
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Call connected. Live coach is starting.</Say>
+  <Connect>
+    <Stream url="${wsUrl}" />
+  </Connect>
+</Response>`);
+});
+
 
 /**
  * Ingest transcript events (from Twilio pipeline or your own STT layer).
